@@ -12,5 +12,5 @@
     "4318": { "label": "OTLP HTTP", "onAutoForward": "ignore" }
   },
   "remoteUser": "vscode",
-  "postCreateCommand": "docker compose pull --ignore-pull-failures || true"
+  "postCreateCommand": "chmod 777 start.sh && docker --version && docker compose version && ./start.sh"
 }
