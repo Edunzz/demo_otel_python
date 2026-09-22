@@ -1,6 +1,6 @@
 {
   "name": "demo-otel-python",
-  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "build": { "dockerfile": "Dockerfile" },
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
@@ -11,5 +11,6 @@
     "4317": { "label": "OTLP gRPC", "onAutoForward": "ignore" },
     "4318": { "label": "OTLP HTTP", "onAutoForward": "ignore" }
   },
+  "remoteUser": "vscode",
   "postCreateCommand": "docker compose pull --ignore-pull-failures || true"
 }
