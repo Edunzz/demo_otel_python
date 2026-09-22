@@ -1,0 +1,15 @@
+{
+  "name": "demo-otel-python",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [5001, 9411, 4317, 4318],
+  "portsAttributes": {
+    "9411": { "label": "Zipkin UI", "onAutoForward": "notify" },
+    "5001": { "label": "Payments API", "onAutoForward": "silent" },
+    "4317": { "label": "OTLP gRPC", "onAutoForward": "ignore" },
+    "4318": { "label": "OTLP HTTP", "onAutoForward": "ignore" }
+  },
+  "postCreateCommand": "docker compose pull --ignore-pull-failures || true"
+}

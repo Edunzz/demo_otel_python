@@ -1,0 +1,26 @@
+# OpenTelemetry Collector: recibe OTLP (gRPC/HTTP) y exporta a Zipkin.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 2s
+
+exporters:
+  zipkin:
+    endpoint: http://zipkin:9411/api/v2/spans
+  # Loguea un resumen de los spans recibidos (docker logs otel-collector)
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [zipkin, debug]

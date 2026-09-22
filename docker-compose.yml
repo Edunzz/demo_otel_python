@@ -1,0 +1,53 @@
+name: demo-otel-python
+
+services:
+  # --- Backend de trazas ---
+  zipkin:
+    image: openzipkin/zipkin:2
+    container_name: zipkin
+    ports:
+      - "9411:9411"   # UI + API de Zipkin
+
+  # --- Collector: recibe OTLP y exporta a Zipkin ---
+  otel-collector:
+    image: otel/opentelemetry-collector:0.111.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    depends_on:
+      - zipkin
+
+  # --- Servicios de negocio ---
+  inventory:
+    build: ./inventory
+    container_name: inventory
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    depends_on:
+      - otel-collector
+
+  payments:
+    build: ./payments
+    container_name: payments
+    ports:
+      - "5001:5001"   # API publica del servicio payments
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - INVENTORY_URL=http://inventory:5002
+    depends_on:
+      - inventory
+
+  # --- Generador de carga ---
+  loadgen:
+    build: ./loadgen
+    container_name: loadgen
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - PAYMENTS_URL=http://payments:5001
+      - INTERVAL_MAX=3
+    depends_on:
+      - payments

@@ -1,0 +1,18 @@
+flowchart LR
+  user(["Usuario"])
+  subgraph compose["docker compose: demo-otel-python"]
+    direction LR
+    loadgen["loadgen<br/>Python - loop POST /pay"]
+    payments["payments<br/>Flask :5001"]
+    inventory["inventory<br/>Flask :5002"]
+    collector["otel-collector<br/>OTLP gRPC :4317 / HTTP :4318"]
+    zipkin[("zipkin<br/>UI :9411")]
+  end
+  loadgen -- "HTTP POST /pay" --> payments
+  payments -- "HTTP GET /check" --> inventory
+  loadgen -. "OTLP spans" .-> collector
+  payments -. "OTLP spans" .-> collector
+  inventory -. "OTLP spans" .-> collector
+  collector -- "Zipkin API v2" --> zipkin
+  user -- "POST /pay manual" --> payments
+  user -- "ver trazas :9411" --> zipkin
