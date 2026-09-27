@@ -18,6 +18,11 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+"""
+Custom test OTEL instrumentation 
+"""
+from opentelemetry.sdk.error_handler import GlobalErrorHandler
+
 SERVICE_NAME = "payments"
 OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
 INVENTORY_URL = os.getenv("INVENTORY_URL", "http://localhost:5002")
@@ -58,6 +63,8 @@ def pay():
     # Simula validacion antifraude
     with tracer.start_as_current_span("validate-payment"):
         time.sleep(random.uniform(0.01, 0.08))
+        with GlobalErrorHandler():
+            print(1 / 0)
 
     # Llamada al servicio inventory (el contexto de la traza viaja en headers)
     with tracer.start_as_current_span("check-stock") as check_span:
