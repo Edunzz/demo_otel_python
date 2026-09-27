@@ -68,13 +68,17 @@ def pay():
         return jsonify(status="error", detail="inventory unavailable"), 502
 
     stock = resp.json()
-    if not stock.get("available"):
-        return jsonify(status="rejected", reason="out of stock", product=product), 409
+    if not stock.get("available"): 
+        status = "rejected"
+        span.set_attribute("payment.status", status)
+        return jsonify(status=status, reason="out of stock", product=product), 409
 
     with tracer.start_as_current_span("charge-card"):
         time.sleep(random.uniform(0.02, 0.12))
 
-    return jsonify(status="paid", product=product, amount=amount)
+    status = "paid"
+    span.set_attribute("payment.status", status)
+    return jsonify(status=status, product=product, amount=amount)
 
 
 if __name__ == "__main__":
