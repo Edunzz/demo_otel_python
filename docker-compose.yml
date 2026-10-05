@@ -8,6 +8,13 @@ services:
     ports:
       - "9411:9411"   # UI + API de Zipkin
 
+  # --- Grafana LGTM (Grafana + Prometheus/Mimir + Tempo + Loki) ---
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: lgtm
+    ports:
+      - "3000:3000"   # UI de Grafana (admin/admin)
+
   # --- Collector: recibe OTLP y exporta a Zipkin ---
   otel-collector:
     image: otel/opentelemetry-collector:0.111.0
@@ -20,6 +27,7 @@ services:
       - "4318:4318"   # OTLP HTTP
     depends_on:
       - zipkin
+      - lgtm
 
   # --- Servicios de negocio ---
   inventory:

@@ -17,10 +17,19 @@ exporters:
   # Loguea un resumen de los spans recibidos (docker logs otel-collector)
   debug:
     verbosity: basic
+  # Reenvia metricas (y trazas) a grafana/otel-lgtm
+  otlp/lgtm:
+    endpoint: lgtm:4317
+    tls:
+      insecure: true
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [zipkin, debug]
+      exporters: [zipkin, otlp/lgtm, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/lgtm, debug]

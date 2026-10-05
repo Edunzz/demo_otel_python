@@ -1,7 +1,7 @@
 """Servicio payments (Flask + OpenTelemetry).
 
 Recibe pagos en POST /pay y valida stock llamando al servicio inventory.
-Exporta trazas OTLP gRPC al OpenTelemetry Collector y métricas a consola.
+Exporta trazas OTLP gRPC al OpenTelemetry Collector y métricas OTLP al Collector (que las reenvía a Grafana LGTM).
 """
 import os
 import random
@@ -16,10 +16,8 @@ from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.metrics import CallbackOptions, Observation
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import (
-    ConsoleMetricExporter,
-    PeriodicExportingMetricReader,
-)
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -39,9 +37,10 @@ provider.add_span_processor(
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer(__name__)
 
-# --- Métricas: exportación a consola cada 10 s ---
+# --- Métricas: OTLP gRPC al Collector cada 10 s ---
 metric_reader = PeriodicExportingMetricReader(
-    ConsoleMetricExporter(), export_interval_millis=10_000
+    OTLPMetricExporter(endpoint=OTLP_ENDPOINT, insecure=True),
+    export_interval_millis=10_000,
 )
 metrics.set_meter_provider(MeterProvider(resource=resource, metric_readers=[metric_reader]))
 meter = metrics.get_meter(__name__)
