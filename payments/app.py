@@ -63,8 +63,9 @@ def pay():
     # Simula validacion antifraude
     with tracer.start_as_current_span("validate-payment") as validation_span:
         time.sleep(random.uniform(0.01, 0.08))
+        divisor = 0 if random.randint(1, 10) == 1 else 1
         try:
-            print(1 / 0)
+        print(i, 1 / divisor)
         except Exception as exc:
             validation_span.record_exception(exc)
             validation_span.set_status(
