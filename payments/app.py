@@ -1,8 +1,8 @@
 """Servicio payments (Flask + OpenTelemetry).
 
 Recibe pagos en POST /pay y valida stock llamando al servicio inventory.
-Exporta trazas OTLP gRPC al OpenTelemetry Collector, métricas OTLP al Collector (que las reenvía a Grafana LGTM)
-y logs por consola (ConsoleLogExporter).
+Exporta trazas, métricas y logs OTLP gRPC al OpenTelemetry Collector
+(que los reenvía a Zipkin y a Grafana LGTM: Tempo, Prometheus y Loki).
 """
 import logging
 import os
@@ -13,13 +13,14 @@ import requests
 from flask import Flask, jsonify, request
 
 from opentelemetry import metrics, trace
+from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.metrics import CallbackOptions, Observation
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-from opentelemetry.sdk._logs.export import ConsoleLogExporter, SimpleLogRecordProcessor
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
@@ -50,12 +51,12 @@ metric_reader = PeriodicExportingMetricReader(
 metrics.set_meter_provider(MeterProvider(resource=resource, metric_readers=[metric_reader]))
 meter = metrics.get_meter(__name__)
 
-# --- Logs: exportación por consola ---
-# ConsoleLogExporter imprime cada log record (en JSON) en stdout, correlacionado
+# --- Logs: OTLP gRPC al Collector (→ Loki/Grafana) ---
+# BatchLogRecordProcessor envía los logs en lotes al Collector, correlacionados
 # con la traza activa gracias al LoggingInstrumentor (trace_id/span_id).
 logger_provider = LoggerProvider(resource=resource)
 logger_provider.add_log_record_processor(
-    SimpleLogRecordProcessor(ConsoleLogExporter())
+    BatchLogRecordProcessor(OTLPLogExporter(endpoint=OTLP_ENDPOINT, insecure=True))
 )
 
 # Conecta el logging estándar de Python con el SDK de OpenTelemetry
