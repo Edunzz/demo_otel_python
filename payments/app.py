@@ -1,8 +1,10 @@
 """Servicio payments (Flask + OpenTelemetry).
 
 Recibe pagos en POST /pay y valida stock llamando al servicio inventory.
-Exporta trazas OTLP gRPC al OpenTelemetry Collector y métricas OTLP al Collector (que las reenvía a Grafana LGTM).
+Exporta trazas OTLP gRPC al OpenTelemetry Collector, métricas OTLP al Collector (que las reenvía a Grafana LGTM)
+y logs por consola (ConsoleLogExporter).
 """
+import logging
 import os
 import random
 import time
@@ -13,8 +15,11 @@ from flask import Flask, jsonify, request
 from opentelemetry import metrics, trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.metrics import CallbackOptions, Observation
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import ConsoleLogExporter, SimpleLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
@@ -44,6 +49,21 @@ metric_reader = PeriodicExportingMetricReader(
 )
 metrics.set_meter_provider(MeterProvider(resource=resource, metric_readers=[metric_reader]))
 meter = metrics.get_meter(__name__)
+
+# --- Logs: exportación por consola ---
+# ConsoleLogExporter imprime cada log record (en JSON) en stdout, correlacionado
+# con la traza activa gracias al LoggingInstrumentor (trace_id/span_id).
+logger_provider = LoggerProvider(resource=resource)
+logger_provider.add_log_record_processor(
+    SimpleLogRecordProcessor(ConsoleLogExporter())
+)
+
+# Conecta el logging estándar de Python con el SDK de OpenTelemetry
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.addHandler(LoggingHandler(level=logging.INFO, logger_provider=logger_provider))
+LoggingInstrumentor().instrument(set_logging_format=True)
+logger = logging.getLogger(__name__)
 
 PRODUCTS = {"pen": 10.0, "book": 25.0, "laptop": 999.0}
 _start_time = time.time()
@@ -128,7 +148,14 @@ def pay():
             divisor = 0 if random.randint(1, 10) == 1 else 1
             try:
                 _ = 1 / divisor
-            except Exception as exc:
+            except ZeroDivisionError as exc:
+                # Captura la excepción en el log: solo se emite cuando falla la división por cero
+                logger.exception(
+                    "Error de validación de pago (división por cero) product=%s amount=%.2f",
+                    product,
+                    amount,
+                    extra={"payment.product": product, "payment.amount": amount},
+                )
                 validation_span.record_exception(exc)
                 validation_span.set_status(
                     Status(StatusCode.ERROR, description=f"{type(exc).__name__}: {exc}")

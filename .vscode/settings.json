@@ -1,0 +1,12 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /workspaces/demo_otel_python/payments && python -m py_compile app\\.py && echo \"OK: sintaxis válida\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^cd /workspaces/demo_otel_python/payments && python -c \"import app; print\\('imports OK'\\)\" 2>&1 \\| tail -3$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
